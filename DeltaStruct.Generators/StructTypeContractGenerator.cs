@@ -1,9 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System;
-using System.Linq;
 using System.Collections.Generic;
-using Microsoft.CodeAnalysis.Text;
+using System.Linq;
 using System.Text;
 
 namespace DeltaStruct.Generators
@@ -11,6 +9,19 @@ namespace DeltaStruct.Generators
     [Generator]
     public class StructTypeContractGenerator : ISourceGenerator
     {
+        private static Dictionary<string, string> Types =
+            new Dictionary<string, string>()
+            {
+                { "ushort", "UInt16" },
+                { "short", "Int16" },
+                { "uint", "UInt32" },
+                { "int", "Int32" },
+                { "ulong", "UInt64" },
+                { "long", "Int64" },
+                { "float", "Single" },
+                { "double", "Double" },
+            };
+
         public void Execute(GeneratorExecutionContext context)
         {
             var syntax = context.SyntaxReceiver as MarkedClassSyntaxReceiver;
@@ -68,39 +79,53 @@ namespace DeltaStruct.Generators
                             break;
 
                         case "ushort":
-                            text.Append("stream.Read(buffer, 0, sizeof(ushort))");
-                            text.Append($"inst.{propName} = BitConverter.ToUInt16(buffer, 0);");
-                            break;
                         case "short":
-                            text.Append("stream.Read(buffer, 0, sizeof(short))");
-                            text.Append($"inst.{propName} = BitConverter.ToInt16(buffer, 0);");
-                            break;
-
                         case "uint":
-                            text.Append("stream.Read(buffer, 0, sizeof(uint))");
-                            text.Append($"inst.{propName} = BitConverter.ToUInt32(buffer, 0);");
-                            break;
                         case "int":
-                            text.Append("stream.Read(buffer, 0, sizeof(int))");
-                            text.Append($"inst.{propName} = BitConverter.ToInt32(buffer, 0);");
-                            break;
-
                         case "ulong":
-                            text.Append("stream.Read(buffer, 0, sizeof(ulong))");
-                            text.Append($"inst.{propName} = BitConverter.ToUInt64(buffer, 0);");
-                            break;
                         case "long":
-                            text.Append("stream.Read(buffer, 0, sizeof(long))");
-                            text.Append($"inst.{propName} = BitConverter.ToInt64(buffer, 0);");
+                        case "float":
+                        case "double":
+                            text.Append($"stream.Read(buffer, 0, sizeof({typeName}));");
+                            text.Append($"inst.{propName} = BitConverter.To{Types[typeName]}(buffer, 0);");
+                            break;
+                    }
+                }
+            }
+
+            text.Append($"return inst; }} public void WriteToStream({className} inst, Stream stream) {{");
+            text.Append($"var buffer = new byte[8].AsSpan();");
+
+            foreach (var member in classDef.Members)
+            {
+                if (member is PropertyDeclarationSyntax prop &&
+                    prop.Modifiers.All(m => m.ValueText == "public") &&
+                    prop.AccessorList.Accessors.Any(a => a.Keyword.ValueText == "set") &&
+                    prop.AttributeLists.Single().Attributes
+                    .Any(a => a.Name.ToString() == "StructMember"))
+                {
+                    var propName = prop.Identifier.ValueText;
+                    var typeName = prop.Type.ToString();
+
+                    switch (typeName)
+                    {
+                        case "byte":
+                            text.Append($"stream.WriteByte(inst.{propName});");
+                            break;
+                        case "sbyte":
+                            text.Append($"stream.WriteByte(unchecked((byte)inst.{propName}));");
                             break;
 
+                        case "ushort":
+                        case "short":
+                        case "uint":
+                        case "int":
+                        case "ulong":
+                        case "long":
                         case "float":
-                            text.Append("stream.Read(buffer, 0, sizeof(float))");
-                            text.Append($"inst.{propName} = BitConverter.ToSingle(buffer, 0);");
-                            break;
                         case "double":
-                            text.Append("stream.Read(buffer, 0, sizeof(double))");
-                            text.Append($"inst.{propName} = BitConverter.ToDouble(buffer, 0);");
+                            text.Append($"BitConverter.TryWriteBytes(buffer, inst.{propName});");
+                            text.Append($"stream.Write(buffer[0..sizeof({typeName})]);");
                             break;
                     }
                 }
