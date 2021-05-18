@@ -7,12 +7,15 @@ using System.Threading.Tasks;
 namespace DeltaStruct.ConsoleTest
 {
     [StructType]
-    public class TestStruct
+    public partial class TestStruct1
     {
         [StructMember]
         public int num1 { get; set; }
 
         [StructMember]
         public long num2 { get; set; }
+
+        [StructMember]
+        public TestStruct2 test1 { get; set; }
     }
 }

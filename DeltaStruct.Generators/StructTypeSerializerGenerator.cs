@@ -7,7 +7,7 @@ using System.Text;
 namespace DeltaStruct.Generators
 {
     [Generator]
-    public class StructTypeContractGenerator : ISourceGenerator
+    public class StructTypeSerializerGenerator : ISourceGenerator
     {
         private static Dictionary<string, string> Types =
             new Dictionary<string, string>()
@@ -47,16 +47,28 @@ namespace DeltaStruct.Generators
             text.Append($"using System;");
             text.Append($"using System.IO;");
 
+            // Namespace declaration
             text.Append($"namespace {(classDef.Parent as NamespaceDeclarationSyntax).Name} {{");
-            text.Append($"public class G_{className}_Serializer : ISerializer<{className}> {{");
 
-            text.Append($"static G_{className}_Serializer() {{");
-            text.Append($"Serializers.Register<{className}, G_{className}_Serializer>();");
+            // Inject serializer registration code
+            text.Append($"public partial class {className} {{ public static void Init() {{ ");
+            text.Append($"if(!Serializers.Has<{className}>()) {{");
+            text.Append($"Serializers.Register<{className}, G_{className}_Serializer>(); }} }}");
 
-            text.Append($"}} public {className} ReadFromStream(Stream stream) {{");
+            // Inject constructor
+            text.Append($"private Context context; public {className}(Context context) {{");
+            text.Append($"this.context = context; }}");
 
-            text.Append($"var inst = new {className}();");
-            text.Append($"var buffer = new byte[8];");
+            // Declare serializer class
+            text.Append($"}} public class G_{className}_Serializer : ISerializer<{className}> {{");
+
+            // Declare constructor
+            text.Append($"private Context context; public G_{className}_Serializer(Context context) {{");
+            text.Append($"this.context = context; }}");
+
+            // Implement ReadFromStream
+            text.Append($"public {className} ReadFromStream(Stream stream) {{");
+            text.Append($"var inst = new {className}(context); var buffer = new byte[8];");
 
             foreach (var member in classDef.Members)
             {
@@ -72,10 +84,14 @@ namespace DeltaStruct.Generators
                     switch (typeName)
                     {
                         case "byte":
-                            text.Append($"inst.{propName} = stream.ReadByte();");
+                            text.Append($"var v_{propName} = stream.ReadByte();");
+                            text.Append($"if(v_{propName} < 0) throw new EndOfStreamException(\"Failed to read {typeName} {className}.{propName} from stream!\");");
+                            text.Append($"inst.{propName} = (byte)v_{propName}");
                             break;
                         case "sbyte":
-                            text.Append($"inst.{propName} = unchecked((sbyte)stream.ReadByte());");
+                            text.Append($"var v_{propName} = stream.ReadByte();");
+                            text.Append($"if(v_{propName} < 0) throw new EndOfStreamException(\"Failed to read {typeName} {className}.{propName} from stream!\");");
+                            text.Append($"inst.{propName} = unchecked((sbyte)v_{propName});");
                             break;
 
                         case "ushort":
@@ -86,8 +102,13 @@ namespace DeltaStruct.Generators
                         case "long":
                         case "float":
                         case "double":
-                            text.Append($"stream.Read(buffer, 0, sizeof({typeName}));");
+                            text.Append($"var v_{propName} = stream.Read(buffer, 0, sizeof({typeName}));");
+                            text.Append($"if(v_{propName} <= 0) throw new EndOfStreamException(\"Failed to read {typeName} {className}.{propName} from stream!\");");
                             text.Append($"inst.{propName} = BitConverter.To{Types[typeName]}(buffer, 0);");
+                            break;
+
+                        default:
+                            text.Append($"{typeName}.Init(); inst.{propName} = Serializers.Get<{typeName}>(context).ReadFromStream(stream);");
                             break;
                     }
                 }
