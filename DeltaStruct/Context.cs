@@ -1,4 +1,8 @@
-﻿namespace DeltaStruct
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+
+namespace DeltaStruct
 {
     public enum Endianess
     {
@@ -8,17 +12,22 @@
 
     public class Context
     {
-        public object Parent { get; }
-
-        public long FileOffset { get; }
-
+        public Stream Stream { get; }
         public Endianess Endianess { get; }
 
-        public Context(object parent, long fileOffset, Endianess endianess)
+        public IStructInstance Current { get; set; }
+        public List<IStructInstance> Instances { get; }
+
+        public static readonly Endianess SystemEndianess = BitConverter.IsLittleEndian ? Endianess.Little : Endianess.Big;
+
+        public Context(Stream stream, Endianess endianess)
         {
-            Parent = parent;
-            FileOffset = fileOffset;
+            Stream = stream;
             Endianess = endianess;
+
+            Instances = new List<IStructInstance>();
         }
+        
+        // TODO: OffsetAllAfter(IStructInstance inst, long amount)
     }
 }

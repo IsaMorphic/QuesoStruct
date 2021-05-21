@@ -5,27 +5,29 @@ namespace DeltaStruct
 {
     public static class Serializers
     {
-        private static Dictionary<Type, Type> types;
+        private static readonly Dictionary<Type, object> serializers;
 
         static Serializers()
         {
-            types = new Dictionary<Type, Type>();
+            serializers = new Dictionary<Type, object>();
         }
 
-        public static void Register<TInst, TSerializer>() where TSerializer : ISerializer<TInst>
+        public static void Register<TInst, TSerializer>() 
+            where TSerializer : ISerializer<TInst>, new()
+            where TInst : IStructInstance
         {
-            types.Add(typeof(TInst), typeof(TSerializer));
+            serializers.Add(typeof(TInst), new TSerializer());
         }
 
         public static bool Has<TInst>()
         {
-            return types.ContainsKey(typeof(TInst));
+            return serializers.ContainsKey(typeof(TInst));
         }
 
-        public static ISerializer<TInst> Get<TInst>(Context context)
+        public static ISerializer<TInst> Get<TInst>() 
+            where TInst : IStructInstance
         {
-            var type = types[typeof(TInst)];
-            var inst = Activator.CreateInstance(type, context);
+            var inst = serializers[typeof(TInst)];
             return inst as ISerializer<TInst>;
         }
     }

@@ -9,14 +9,23 @@ namespace DeltaStruct.ConsoleTest
         {
             TestStruct1.Init();
 
-            var s = Serializers.Get<TestStruct1>(new Context(null, 0, Endianess.Little));
-            var inst = s.ReadFromStream(Stream.Null);
+            using var file = File.Create("test.bin");
+            var context = new Context(file, Context.SystemEndianess);
 
-            Console.WriteLine($"inst.num1 = {inst.num1}");
-            Console.WriteLine($"inst.num2 = {inst.num2}");
-            Console.WriteLine($"inst.test1.num1 = {inst.test1.num1}");
-            Console.WriteLine($"inst.test1.num2 = {inst.test1.num2}");
-            Console.WriteLine($"inst.test1.num3 = {inst.test1.num3}");
+            var serializer = Serializers.Get<TestStruct1>();
+            var testStruct = new TestStruct1
+            {
+                num1 = 1,
+                num2 = 2,
+                test1 = new TestStruct2
+                {
+                    num1 = -1,
+                    num2 = 3,
+                    num3 = 7
+                }
+            };
+
+            serializer.WriteToStream(testStruct, file);
         }
     }
 }

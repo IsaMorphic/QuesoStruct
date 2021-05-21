@@ -9,7 +9,7 @@ namespace DeltaStruct.Generators
     [Generator]
     public class StructTypeSerializerGenerator : ISourceGenerator
     {
-        private static Dictionary<string, string> Types =
+        private static readonly Dictionary<string, string> Types =
             new Dictionary<string, string>()
             {
                 { "ushort", "UInt16" },
@@ -51,24 +51,28 @@ namespace DeltaStruct.Generators
             text.Append($"namespace {(classDef.Parent as NamespaceDeclarationSyntax).Name} {{");
 
             // Inject serializer registration code
-            text.Append($"public partial class {className} {{ public static void Init() {{ ");
-            text.Append($"if(!Serializers.Has<{className}>()) {{");
+            text.Append($"public partial class {className} : IStructInstance {{");
+            text.Append($"public static void Init() {{ if(!Serializers.Has<{className}>()) {{");
             text.Append($"Serializers.Register<{className}, G_{className}_Serializer>(); }} }}");
 
+            // Inject properties/fields
+            text.Append($"private readonly Context context;");
+
+            text.Append($"public long? Offset {{ get; set; }}");
+            text.Append($"public IStructInstance Parent {{ get; set; }}");
+
             // Inject constructor
-            text.Append($"private Context context; public {className}(Context context) {{");
-            text.Append($"this.context = context; }}");
+            text.Append($"public {className}(Context context) {{");
+            text.Append($"this.context = context; Offset = context.Stream.Position; Parent = context.Current;");
+            text.Append($"}} public {className}() {{ }}");
 
             // Declare serializer class
             text.Append($"}} public class G_{className}_Serializer : ISerializer<{className}> {{");
 
-            // Declare constructor
-            text.Append($"private Context context; public G_{className}_Serializer(Context context) {{");
-            text.Append($"this.context = context; }}");
-
-            // Implement ReadFromStream
-            text.Append($"public {className} ReadFromStream(Stream stream) {{");
-            text.Append($"var inst = new {className}(context); var buffer = new byte[8];");
+            // Implement Read
+            text.Append($"public {className} Read(Context context) {{");
+            text.Append($"var stream = context.Stream; var buffer = new byte[8].AsSpan();");
+            text.Append($"var inst = new {className}(context); context.Current = inst;");
 
             foreach (var member in classDef.Members)
             {
@@ -102,20 +106,23 @@ namespace DeltaStruct.Generators
                         case "long":
                         case "float":
                         case "double":
-                            text.Append($"var v_{propName} = stream.Read(buffer, 0, sizeof({typeName}));");
+                            text.Append($"var s_{propName} = buffer[0..sizeof({typeName})];");
+                            text.Append($"if (context.Endianess != Context.SystemEndianess) s_{propName}.Reverse();");
+                            text.Append($"var v_{propName} = stream.Read(s_{propName});");
                             text.Append($"if(v_{propName} <= 0) throw new EndOfStreamException(\"Failed to read {typeName} {className}.{propName} from stream!\");");
-                            text.Append($"inst.{propName} = BitConverter.To{Types[typeName]}(buffer, 0);");
+                            text.Append($"inst.{propName} = BitConverter.To{Types[typeName]}(s_{propName});");
                             break;
 
                         default:
-                            text.Append($"{typeName}.Init(); inst.{propName} = Serializers.Get<{typeName}>(context).ReadFromStream(stream);");
+                            text.Append($"{typeName}.Init(); inst.{propName} = Serializers.Get<{typeName}>().Read(context);");
                             break;
                     }
                 }
             }
 
-            text.Append($"return inst; }} public void WriteToStream({className} inst, Stream stream) {{");
-            text.Append($"var buffer = new byte[8].AsSpan();");
+            text.Append($"context.Instances.Add(inst); return inst; }}");
+            text.Append($"public void Write({className} inst, Context context) {{");
+            text.Append($"var stream = context.Stream; var buffer = new byte[8].AsSpan();");
 
             foreach (var member in classDef.Members)
             {
@@ -146,7 +153,13 @@ namespace DeltaStruct.Generators
                         case "float":
                         case "double":
                             text.Append($"BitConverter.TryWriteBytes(buffer, inst.{propName});");
-                            text.Append($"stream.Write(buffer[0..sizeof({typeName})]);");
+                            text.Append($"var s_{propName} = buffer[0..sizeof({typeName})];");
+                            text.Append($"if (context.Endianess != Context.SystemEndianess) s_{propName}.Reverse();");
+                            text.Append($"stream.Write(s_{propName});");
+                            break;
+
+                        default:
+                            text.Append($"{typeName}.Init(); Serializers.Get<{typeName}>().Write(inst.{propName}, context);");
                             break;
                     }
                 }

@@ -1,10 +1,9 @@
-﻿using System.IO;
-
-namespace DeltaStruct
+﻿namespace DeltaStruct
 {
-    public interface ISerializer<T>
+    public interface ISerializer<TInst> 
+        where TInst : IStructInstance
     {
-        T ReadFromStream(Stream stream);
-        void WriteToStream(T inst, Stream stream);
+        TInst Read(Context context);
+        void Write(TInst inst, Context context);
     }
 }
