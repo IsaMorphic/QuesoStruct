@@ -61,9 +61,11 @@ namespace DeltaStruct.Generators
             text.Append($"public long? Offset {{ get; set; }}");
             text.Append($"public IStructInstance Parent {{ get; set; }}");
 
+            text.Append($"public HashSet<IStructReference> References {{ get; }}");
+
             // Inject constructor
             text.Append($"public {className}(Context context) {{");
-            text.Append($"this.context = context; Offset = context.Stream.Position; Parent = context.Current;");
+            text.Append($"this.context = context; Offset = context.Stream.Position; Parent = context.Current; References = new HashSet<IStructReference>();");
             text.Append($"}} public {className}() {{ }}");
 
             // Declare serializer class
@@ -118,6 +120,18 @@ namespace DeltaStruct.Generators
                             break;
                     }
                 }
+            }
+
+            var refInfo = classDef.BaseList.Types
+                .SingleOrDefault(type => type.Type is GenericNameSyntax g && g.Identifier.ValueText == "IStructReference")
+                .Type as GenericNameSyntax;
+
+            if (refInfo != null)
+            {
+                var refTypeName = refInfo.TypeArgumentList.Arguments.Single().ToString();
+                text.Append($"var posBefore = stream.Position; stream.Seek(inst.OffsetValue, SeekOrigin.Begin);");
+                text.Append($"{refTypeName}.Init(); inst.Instance = Serializers.Get<{refTypeName}>().Read(context);");
+                text.Append($"inst.Instance.References.Add(this); stream.Seek(posBefore, SeekOrigin.Begin);");
             }
 
             text.Append($"context.Instances.Add(inst); return inst; }}");

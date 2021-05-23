@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace DeltaStruct
 {
@@ -27,7 +28,21 @@ namespace DeltaStruct
 
             Instances = new List<IStructInstance>();
         }
-        
-        // TODO: OffsetAllAfter(IStructInstance inst, long amount)
+
+        public void OffsetAllAfter(IStructInstance inst, long amount)
+        {
+            foreach (var i in Instances
+                .Where(i => i.Offset.HasValue)
+                .OrderBy(i => i.Offset)
+                .SkipWhile(i => !ReferenceEquals(i, inst))
+                .Skip(1))
+            {
+                i.Offset += amount;
+                foreach (var r in i.References)
+                {
+                    r.Update();
+                }
+            }
+        }
     }
 }
