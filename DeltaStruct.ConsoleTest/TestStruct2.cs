@@ -11,5 +11,8 @@
 
         [StructMember]
         public long num3 { get; set; }
+
+        public void OnAfterRead() { }
+        public void OnBeforeWrite(Context context) { }
     }
 }

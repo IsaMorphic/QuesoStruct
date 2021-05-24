@@ -2,7 +2,7 @@
 {
     public interface IStructReference : IStructInstance
     {
-        long OffsetValue { get; }
+        long? OffsetValue { get; }
         void Update();
     }
 

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 
 namespace DeltaStruct
 {
@@ -15,16 +16,18 @@ namespace DeltaStruct
     {
         public Stream Stream { get; }
         public Endianess Endianess { get; }
+        public Encoding Encoding { get; }
 
         public IStructInstance Current { get; set; }
         public List<IStructInstance> Instances { get; }
 
         public static readonly Endianess SystemEndianess = BitConverter.IsLittleEndian ? Endianess.Little : Endianess.Big;
 
-        public Context(Stream stream, Endianess endianess)
+        public Context(Stream stream, Endianess endianess, Encoding encoding)
         {
             Stream = stream;
             Endianess = endianess;
+            Encoding = encoding;
 
             Instances = new List<IStructInstance>();
         }

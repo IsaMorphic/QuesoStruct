@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using DeltaStruct.Types;
+using DeltaStruct.Types.Pointers;
 
 namespace DeltaStruct.ConsoleTest
 {
@@ -16,6 +13,12 @@ namespace DeltaStruct.ConsoleTest
         public long num2 { get; set; }
 
         [StructMember]
-        public TestStruct2 test1 { get; set; }
+        Absolute.UInt16Pointer<Primitives.NullTerminatingString> string1 { get; set; }
+
+        [StructMember]
+        public TestStruct2 test2 { get; set; }
+
+        public void OnAfterRead() { }
+        public void OnBeforeWrite(Context context) { }
     }
 }

@@ -1,5 +1,8 @@
-﻿using System;
+﻿using DeltaStruct.Types;
+using DeltaStruct.Types.Pointers;
+using System;
 using System.IO;
+using System.Text;
 
 namespace DeltaStruct.ConsoleTest
 {
@@ -8,24 +11,15 @@ namespace DeltaStruct.ConsoleTest
         static void Main(string[] args)
         {
             TestStruct1.Init();
+            TestStruct2.Init();
+            Primitives.NullTerminatingString.Init();
+            Absolute.UInt16Pointer<Primitives.NullTerminatingString>.Init();
 
-            using var file = File.Create("test.bin");
-            var context = new Context(file, Context.SystemEndianess);
+            using var file = File.OpenRead("test.bin");
+            var context = new Context(file, Context.SystemEndianess, Encoding.ASCII);
 
             var serializer = Serializers.Get<TestStruct1>();
-            var testStruct = new TestStruct1
-            {
-                num1 = 1,
-                num2 = 2,
-                test1 = new TestStruct2
-                {
-                    num1 = -1,
-                    num2 = 3,
-                    num3 = 7
-                }
-            };
-
-            serializer.WriteToStream(testStruct, file);
+            var test1 = serializer.Read(context);
         }
     }
 }

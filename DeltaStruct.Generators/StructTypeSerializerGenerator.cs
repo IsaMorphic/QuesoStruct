@@ -27,7 +27,12 @@ namespace DeltaStruct.Generators
             var syntax = context.SyntaxReceiver as MarkedClassSyntaxReceiver;
             foreach (var classDef in syntax.Classes)
             {
-                var className = classDef.Identifier.ValueText;
+                var className = string.Join(".", classDef
+                .AncestorsAndSelf().Reverse().Select(node =>
+                (node as ClassDeclarationSyntax)?.Identifier.ValueText ??
+                (node as NamespaceDeclarationSyntax)?.Name.ToString()
+                ).Where(id => id != null));
+
                 context.AddSource($"{className}_serializer", GenerateSerializerSource(classDef));
             }
         }
@@ -37,23 +42,76 @@ namespace DeltaStruct.Generators
             context.RegisterForSyntaxNotifications(() => new MarkedClassSyntaxReceiver());
         }
 
+        private bool IsStructMember(MemberDeclarationSyntax member)
+        {
+            return member is PropertyDeclarationSyntax prop &&
+                    prop.Modifiers.All(m => m.ValueText == "public") &&
+                    (prop.AccessorList?.Accessors.Any(a => a.Keyword.ValueText == "set") ?? false) &&
+                    (prop.AttributeLists.SingleOrDefault()?.Attributes
+                    .Any(a => a.Name.ToString() == "StructMember") ?? false);
+        }
+
         private string GenerateSerializerSource(ClassDeclarationSyntax classDef)
         {
             var className = classDef.Identifier.ValueText;
+            var namespaceName = (classDef.Ancestors()
+                    .First(a => a is NamespaceDeclarationSyntax)
+                    as NamespaceDeclarationSyntax).Name;
+
+            var classParams = classDef.TypeParameterList?.ToString();
+            var fullClassName = className + classParams;
+
+            var classConstr = classDef.ConstraintClauses.ToString();
+
+            GenericNameSyntax refInfo = null;
+            string refTypeName = null;
+
+            if (classDef.BaseList != null)
+            {
+                refInfo = classDef.BaseList?.Types
+                .Select(bt => bt.Type as GenericNameSyntax)
+                .Where(g => g != null)
+                .Single(g => g.Identifier.ValueText == "IStructReference");
+
+                if (refInfo != null)
+                {
+                    refTypeName = refInfo.TypeArgumentList.Arguments.Single().ToString();
+                }
+            }
 
             var text = new StringBuilder();
 
             text.Append($"using DeltaStruct;");
+            text.Append($"using DeltaStruct.Types;");
+            text.Append($"using DeltaStruct.Types.Pointers;");
             text.Append($"using System;");
+            text.Append($"using System.Collections.Generic;");
             text.Append($"using System.IO;");
 
             // Namespace declaration
-            text.Append($"namespace {(classDef.Parent as NamespaceDeclarationSyntax).Name} {{");
+            text.Append($"namespace {namespaceName} {{");
+
+            var parentClasses = classDef
+                .Ancestors().Reverse().Select(node =>
+                (node as ClassDeclarationSyntax)?.Identifier.ValueText
+                ).Where(id => id != null);
+
+            foreach (var parent in parentClasses)
+            {
+                text.Append($"public partial class {parent} {{");
+            }
 
             // Inject serializer registration code
-            text.Append($"public partial class {className} : IStructInstance {{");
-            text.Append($"public static void Init() {{ if(!Serializers.Has<{className}>()) {{");
-            text.Append($"Serializers.Register<{className}, G_{className}_Serializer>(); }} }}");
+            if (refInfo == null)
+            {
+                text.Append($"public partial class {fullClassName} : IStructInstance {classConstr} {{");
+            }
+            else 
+            {
+                text.Append($"public partial class {fullClassName} : {refInfo}, IStructInstance {classConstr} {{");
+            }
+            text.Append($"public static void Init() {{ if(!Serializers.Has<{fullClassName}>()) {{");
+            text.Append($"Serializers.Register<{fullClassName}, Serializer>(); }} }}");
 
             // Inject properties/fields
             text.Append($"private readonly Context context;");
@@ -63,27 +121,29 @@ namespace DeltaStruct.Generators
 
             text.Append($"public HashSet<IStructReference> References {{ get; }}");
 
+            if (refTypeName != null)
+            {
+                text.Append($"public {refTypeName} Instance {{ get => instance; set {{ instance = value; Update(); }} }} private {refTypeName} instance;");
+            }
+
             // Inject constructor
             text.Append($"public {className}(Context context) {{");
             text.Append($"this.context = context; Offset = context.Stream.Position; Parent = context.Current; References = new HashSet<IStructReference>();");
             text.Append($"}} public {className}() {{ }}");
 
             // Declare serializer class
-            text.Append($"}} public class G_{className}_Serializer : ISerializer<{className}> {{");
+            text.Append($"public class Serializer : ISerializer<{fullClassName}> {{");
 
             // Implement Read
-            text.Append($"public {className} Read(Context context) {{");
+            text.Append($"public {fullClassName} Read(Context context) {{");
             text.Append($"var stream = context.Stream; var buffer = new byte[8].AsSpan();");
-            text.Append($"var inst = new {className}(context); context.Current = inst;");
+            text.Append($"var inst = new {fullClassName}(context);");
 
             foreach (var member in classDef.Members)
             {
-                if (member is PropertyDeclarationSyntax prop &&
-                    prop.Modifiers.All(m => m.ValueText == "public") &&
-                    prop.AccessorList.Accessors.Any(a => a.Keyword.ValueText == "set") &&
-                    prop.AttributeLists.Single().Attributes
-                    .Any(a => a.Name.ToString() == "StructMember"))
+                if (IsStructMember(member))
                 {
+                    var prop = member as PropertyDeclarationSyntax;
                     var propName = prop.Identifier.ValueText;
                     var typeName = prop.Type.ToString();
 
@@ -116,36 +176,28 @@ namespace DeltaStruct.Generators
                             break;
 
                         default:
-                            text.Append($"{typeName}.Init(); inst.{propName} = Serializers.Get<{typeName}>().Read(context);");
+                            text.Append($"context.Current = inst; inst.{propName} = Serializers.Get<{typeName}>().Read(context);");
                             break;
                     }
                 }
             }
 
-            var refInfo = classDef.BaseList.Types
-                .SingleOrDefault(type => type.Type is GenericNameSyntax g && g.Identifier.ValueText == "IStructReference")
-                .Type as GenericNameSyntax;
-
-            if (refInfo != null)
+            if (refTypeName != null)
             {
-                var refTypeName = refInfo.TypeArgumentList.Arguments.Single().ToString();
-                text.Append($"var posBefore = stream.Position; stream.Seek(inst.OffsetValue, SeekOrigin.Begin);");
-                text.Append($"{refTypeName}.Init(); inst.Instance = Serializers.Get<{refTypeName}>().Read(context);");
-                text.Append($"inst.Instance.References.Add(this); stream.Seek(posBefore, SeekOrigin.Begin);");
+                text.Append($"var posBefore = stream.Position; stream.Seek(inst.OffsetValue.Value, SeekOrigin.Begin);");
+                text.Append($"inst.Instance = Serializers.Get<{refTypeName}>().Read(context);");
+                text.Append($"inst.Instance.References.Add(inst); stream.Seek(posBefore, SeekOrigin.Begin);");
             }
 
-            text.Append($"context.Instances.Add(inst); return inst; }}");
-            text.Append($"public void Write({className} inst, Context context) {{");
-            text.Append($"var stream = context.Stream; var buffer = new byte[8].AsSpan();");
+            text.Append($"context.Instances.Add(inst); inst.OnAfterRead(); return inst; }}");
+            text.Append($"public void Write({fullClassName} inst, Context context) {{");
+            text.Append($"inst.OnBeforeWrite(context); var stream = context.Stream; var buffer = new byte[8].AsSpan();");
 
             foreach (var member in classDef.Members)
             {
-                if (member is PropertyDeclarationSyntax prop &&
-                    prop.Modifiers.All(m => m.ValueText == "public") &&
-                    prop.AccessorList.Accessors.Any(a => a.Keyword.ValueText == "set") &&
-                    prop.AttributeLists.Single().Attributes
-                    .Any(a => a.Name.ToString() == "StructMember"))
+                if (IsStructMember(member))
                 {
+                    var prop = member as PropertyDeclarationSyntax;
                     var propName = prop.Identifier.ValueText;
                     var typeName = prop.Type.ToString();
 
@@ -173,18 +225,23 @@ namespace DeltaStruct.Generators
                             break;
 
                         default:
-                            text.Append($"{typeName}.Init(); Serializers.Get<{typeName}>().Write(inst.{propName}, context);");
+                            text.Append($"Serializers.Get<{typeName}>().Write(inst.{propName}, context);");
                             break;
                     }
                 }
             }
 
-            text.Append($"}} }} }}");
+            text.Append($"}} }} }} }}");
+
+            foreach (var parent in parentClasses)
+            {
+                text.Append($"}} ");
+            }
 
             return text.ToString();
         }
 
-        private class MarkedClassSyntaxReceiver : ISyntaxReceiver
+        public class MarkedClassSyntaxReceiver : ISyntaxReceiver
         {
             public HashSet<ClassDeclarationSyntax> Classes { get; }
 
