@@ -8,8 +8,5 @@ namespace DeltaStruct
         IStructInstance Parent { get; set; }
 
         HashSet<IStructReference> References { get; }
-
-        void OnAfterRead();
-        void OnBeforeWrite(Context context);
     }
 }

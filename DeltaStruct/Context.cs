@@ -20,6 +20,7 @@ namespace DeltaStruct
 
         public IStructInstance Current { get; set; }
         public List<IStructInstance> Instances { get; }
+        public HashSet<IStructReference> Unresolved { get; }
 
         public static readonly Endianess SystemEndianess = BitConverter.IsLittleEndian ? Endianess.Little : Endianess.Big;
 
@@ -30,6 +31,16 @@ namespace DeltaStruct
             Encoding = encoding;
 
             Instances = new List<IStructInstance>();
+            Unresolved = new HashSet<IStructReference>();
+        }
+
+        public void SetOffsetWithRefUpdate(IStructInstance inst, long offset)
+        {
+            inst.Offset = offset;
+            foreach (var r in inst.References)
+            {
+                r.Update();
+            }
         }
 
         public void OffsetAllAfter(IStructInstance inst, long amount)

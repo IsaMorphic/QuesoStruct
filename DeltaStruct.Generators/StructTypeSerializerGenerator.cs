@@ -42,13 +42,13 @@ namespace DeltaStruct.Generators
             context.RegisterForSyntaxNotifications(() => new MarkedClassSyntaxReceiver());
         }
 
-        private bool IsStructMember(MemberDeclarationSyntax member)
+        private bool IsValidPropertyWithAttribute(MemberDeclarationSyntax member, string attrName)
         {
             return member is PropertyDeclarationSyntax prop &&
                     prop.Modifiers.All(m => m.ValueText == "public") &&
                     (prop.AccessorList?.Accessors.Any(a => a.Keyword.ValueText == "set") ?? false) &&
-                    (prop.AttributeLists.SingleOrDefault()?.Attributes
-                    .Any(a => a.Name.ToString() == "StructMember") ?? false);
+                    (prop.AttributeLists.SelectMany(a => a.Attributes)
+                    .Any(a => a.Name.ToString() == attrName));
         }
 
         private string GenerateSerializerSource(ClassDeclarationSyntax classDef)
@@ -71,7 +71,7 @@ namespace DeltaStruct.Generators
                 refInfo = classDef.BaseList?.Types
                 .Select(bt => bt.Type as GenericNameSyntax)
                 .Where(g => g != null)
-                .Single(g => g.Identifier.ValueText == "IStructReference");
+                .SingleOrDefault(g => g.Identifier.ValueText == "IStructReference");
 
                 if (refInfo != null)
                 {
@@ -84,6 +84,8 @@ namespace DeltaStruct.Generators
             text.Append($"using DeltaStruct;");
             text.Append($"using DeltaStruct.Types;");
             text.Append($"using DeltaStruct.Types.Pointers;");
+            text.Append($"using DeltaStruct.Types.Collections;");
+
             text.Append($"using System;");
             text.Append($"using System.Collections.Generic;");
             text.Append($"using System.IO;");
@@ -106,16 +108,13 @@ namespace DeltaStruct.Generators
             {
                 text.Append($"public partial class {fullClassName} : IStructInstance {classConstr} {{");
             }
-            else 
+            else
             {
                 text.Append($"public partial class {fullClassName} : {refInfo}, IStructInstance {classConstr} {{");
             }
-            text.Append($"public static void Init() {{ if(!Serializers.Has<{fullClassName}>()) {{");
-            text.Append($"Serializers.Register<{fullClassName}, Serializer>(); }} }}");
+            text.Append($"public static void Init() {{ Serializers.Register<{fullClassName}, Serializer>(); }}");
 
             // Inject properties/fields
-            text.Append($"private readonly Context context;");
-
             text.Append($"public long? Offset {{ get; set; }}");
             text.Append($"public IStructInstance Parent {{ get; set; }}");
 
@@ -123,16 +122,33 @@ namespace DeltaStruct.Generators
 
             if (refTypeName != null)
             {
-                text.Append($"public {refTypeName} Instance {{ get => instance; set {{ instance = value; Update(); }} }} private {refTypeName} instance;");
+                text.Append($"public {refTypeName} Instance {{ get => instance; set {{");
+                text.Append($"instance?.References.Remove(this); value?.References.Add(this); instance = value;");
+                text.Append($"Update(); }} }} private {refTypeName} instance;");
             }
 
             // Inject constructor
             text.Append($"public {className}(Context context) {{");
-            text.Append($"this.context = context; Offset = context.Stream.Position; Parent = context.Current; References = new HashSet<IStructReference>();");
-            text.Append($"}} public {className}() {{ }}");
+            text.Append($"Offset = context.Stream.Position; Parent = context.Current; References = new HashSet<IStructReference>();");
+            text.Append($"}} public {className}(IStructInstance parent = null) {{ Parent = parent; References = new HashSet<IStructReference>();");
+
+            foreach (var member in classDef.Members)
+            {
+                if (IsValidPropertyWithAttribute(member, "AutoInitialize"))
+                {
+                    var prop = member as PropertyDeclarationSyntax;
+                    var propName = prop.Identifier.ValueText;
+                    var typeName = prop.Type.ToString();
+
+                    if (!Types.ContainsKey(typeName))
+                    {
+                        text.Append($"{propName} = new {typeName}(this);");
+                    }
+                }
+            }
 
             // Declare serializer class
-            text.Append($"public class Serializer : ISerializer<{fullClassName}> {{");
+            text.Append($"}} public class Serializer : ISerializer<{fullClassName}> {{");
 
             // Implement Read
             text.Append($"public {fullClassName} Read(Context context) {{");
@@ -141,7 +157,7 @@ namespace DeltaStruct.Generators
 
             foreach (var member in classDef.Members)
             {
-                if (IsStructMember(member))
+                if (IsValidPropertyWithAttribute(member, "StructMember"))
                 {
                     var prop = member as PropertyDeclarationSyntax;
                     var propName = prop.Identifier.ValueText;
@@ -152,7 +168,7 @@ namespace DeltaStruct.Generators
                         case "byte":
                             text.Append($"var v_{propName} = stream.ReadByte();");
                             text.Append($"if(v_{propName} < 0) throw new EndOfStreamException(\"Failed to read {typeName} {className}.{propName} from stream!\");");
-                            text.Append($"inst.{propName} = (byte)v_{propName}");
+                            text.Append($"inst.{propName} = (byte)v_{propName};");
                             break;
                         case "sbyte":
                             text.Append($"var v_{propName} = stream.ReadByte();");
@@ -184,18 +200,25 @@ namespace DeltaStruct.Generators
 
             if (refTypeName != null)
             {
-                text.Append($"var posBefore = stream.Position; stream.Seek(inst.OffsetValue.Value, SeekOrigin.Begin);");
-                text.Append($"inst.Instance = Serializers.Get<{refTypeName}>().Read(context);");
-                text.Append($"inst.Instance.References.Add(inst); stream.Seek(posBefore, SeekOrigin.Begin);");
+                text.Append($"try {{ if(inst.IsResolved && inst.OffsetValue != (inst.Parent as IPointerOwner).NullOffsetValue) {{");
+                text.Append($"var posBefore = stream.Position; stream.Seek(inst.OffsetValue, SeekOrigin.Begin);");
+                text.Append($"context.Current = inst.Parent; inst.Instance = Serializers.Get<{refTypeName}>().Read(context);");
+                text.Append($"stream.Seek(posBefore, SeekOrigin.Begin); }} else {{ inst.Instance = null; }} }} catch(InvalidOperationException) {{");
+                text.Append($"throw new InvalidOperationException(\"Reference of type {refTypeName} was unable to be resolved!\\n");
+                text.Append($"Make sure you have implemented either IPointerOwner or IRelativePointerOwner in the parent StructType!\"); }}");
             }
 
-            text.Append($"context.Instances.Add(inst); inst.OnAfterRead(); return inst; }}");
+            text.Append($"context.Instances.Add(inst); return inst; }}");
+
             text.Append($"public void Write({fullClassName} inst, Context context) {{");
-            text.Append($"inst.OnBeforeWrite(context); var stream = context.Stream; var buffer = new byte[8].AsSpan();");
+            text.Append($"var stream = context.Stream; var buffer = new byte[8].AsSpan();");
+
+            text.Append($"if(inst.Offset.HasValue) stream.Seek(inst.Offset.Value, SeekOrigin.Begin);");
+            text.Append($"else context.SetOffsetWithRefUpdate(inst, stream.Position);");
 
             foreach (var member in classDef.Members)
             {
-                if (IsStructMember(member))
+                if (IsValidPropertyWithAttribute(member, "StructMember"))
                 {
                     var prop = member as PropertyDeclarationSyntax;
                     var propName = prop.Identifier.ValueText;
@@ -231,7 +254,17 @@ namespace DeltaStruct.Generators
                 }
             }
 
-            text.Append($"}} }} }} }}");
+            if (refTypeName != null)
+            {
+                text.Append($"if(inst.Instance != null) {{ if(inst.IsResolved && inst.OffsetValue != (inst.Parent as IPointerOwner).NullOffsetValue) {{");
+                text.Append($"var posBefore = stream.Position; stream.Seek(inst.OffsetValue, SeekOrigin.Begin);");
+                text.Append($"Serializers.Get<{refTypeName}>().Write(inst.Instance, context);");
+                text.Append($"stream.Seek(posBefore, SeekOrigin.Begin); }} else {{");
+                text.Append($"Serializers.Get<{refTypeName}>().Write(inst.Instance, context);");
+                text.Append($"context.Unresolved.Add(inst); }} }} else {{ inst.Update(); }}");
+            }
+
+            text.Append($"context.Instances.Add(inst); }} }} }} }}");
 
             foreach (var parent in parentClasses)
             {

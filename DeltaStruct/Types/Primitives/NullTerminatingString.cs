@@ -44,6 +44,8 @@ namespace DeltaStruct.Types
                     str.AddRange(leftover);
 
                     inst.Value = new string(str.ToArray());
+
+                    context.Instances.Add(inst);
                     return inst;
                 }
 
@@ -63,30 +65,24 @@ namespace DeltaStruct.Types
 
             public static void Init()
             {
-                if (!Serializers.Has<NullTerminatingString>())
-                {
-                    Serializers.Register<NullTerminatingString, Serializer>();
-                }
+                Serializers.Register<NullTerminatingString, Serializer>();
             }
 
-            public NullTerminatingString(Context context)
+            public NullTerminatingString(Context context) : this()
             {
                 Offset = context.Stream.Position;
                 Parent = context.Current;
-                References = new HashSet<IStructReference>();
             }
 
-            public NullTerminatingString() { }
+            public NullTerminatingString() { References = new HashSet<IStructReference>(); }
 
             public long? Offset { get; set; }
             public IStructInstance Parent { get; set; }
 
+            public IStructInstance RelativeOffsetBase { get; }
             public HashSet<IStructReference> References { get; }
 
             public string Value { get; set; }
-
-            public void OnAfterRead() { }
-            public void OnBeforeWrite(Context context) { }
         }
     }
 }

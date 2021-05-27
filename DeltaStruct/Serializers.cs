@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reflection;
 
 namespace DeltaStruct
 {
@@ -27,7 +28,15 @@ namespace DeltaStruct
         public static ISerializer<TInst> Get<TInst>() 
             where TInst : IStructInstance
         {
-            var inst = serializers[typeof(TInst)];
+            var type = typeof(TInst);
+
+            if (!Has<TInst>())
+            {
+                type.GetMethod("Init", BindingFlags.Public | BindingFlags.Static)
+                    .Invoke(null, null);
+            }
+
+            var inst = serializers[type];
             return inst as ISerializer<TInst>;
         }
     }

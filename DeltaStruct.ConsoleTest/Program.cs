@@ -1,6 +1,4 @@
-﻿using DeltaStruct.Types;
-using DeltaStruct.Types.Pointers;
-using System;
+﻿using DeltaStruct.Types.Collections;
 using System.IO;
 using System.Text;
 
@@ -10,16 +8,29 @@ namespace DeltaStruct.ConsoleTest
     {
         static void Main(string[] args)
         {
-            TestStruct1.Init();
-            TestStruct2.Init();
-            Primitives.NullTerminatingString.Init();
-            Absolute.UInt16Pointer<Primitives.NullTerminatingString>.Init();
+            var serializer = Serializers.Get<DeltaTestFile>();
 
-            using var file = File.OpenRead("test.bin");
-            var context = new Context(file, Context.SystemEndianess, Encoding.ASCII);
+            DeltaTestFile test;
+            using (var fileIn = File.OpenRead("test.bin"))
+            {
+                var context = new Context(fileIn, Context.SystemEndianess, Encoding.ASCII);
 
-            var serializer = Serializers.Get<TestStruct1>();
-            var test1 = serializer.Read(context);
+                test = serializer.Read(context);
+            }
+
+            using (var fileOut = File.Create("test_output.bin"))
+            {
+                var context = new Context(fileOut, Context.SystemEndianess, Encoding.ASCII);
+
+                test = new DeltaTestFile();
+                test.Items = new LinkedList.Single<DeltaTestStruct>(test);
+                test.Items.Add(new DeltaTestStruct(test.Items) { X = 1, Y = 1, Z = 1, W = 1 });
+                test.Items.Add(new DeltaTestStruct(test.Items) { X = 2, Y = 2, Z = 2, W = 2 });
+                test.Items.Add(new DeltaTestStruct(test.Items) { X = 3, Y = 3, Z = 3, W = 3 });
+
+                serializer.Write(test, context);
+                serializer.Write(test, context);
+            }
         }
     }
 }
