@@ -200,7 +200,7 @@ namespace DeltaStruct.Generators
 
             if (refTypeName != null)
             {
-                text.Append($"try {{ if(inst.IsResolved && inst.OffsetValue != (inst.Parent as IPointerOwner).NullOffsetValue) {{");
+                text.Append($"try {{ if(inst.OffsetValue != (inst.Parent as IPointerOwner).NullOffsetValue) {{");
                 text.Append($"var posBefore = stream.Position; stream.Seek(inst.OffsetValue, SeekOrigin.Begin);");
                 text.Append($"context.Current = inst.Parent; inst.Instance = Serializers.Get<{refTypeName}>().Read(context);");
                 text.Append($"stream.Seek(posBefore, SeekOrigin.Begin); }} else {{ inst.Instance = null; }} }} catch(InvalidOperationException) {{");

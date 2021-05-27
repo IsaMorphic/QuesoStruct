@@ -18,7 +18,14 @@ namespace DeltaStruct.ConsoleTest
                 test = serializer.Read(context);
             }
 
-            using (var fileOut = File.Create("test_output.bin"))
+            using (var fileOut = File.Create("test_output1.bin"))
+            {
+                var context = new Context(fileOut, Context.SystemEndianess, Encoding.ASCII);
+
+                serializer.Write(test, context);
+            }
+
+            using (var fileOut = File.Create("test_output2.bin"))
             {
                 var context = new Context(fileOut, Context.SystemEndianess, Encoding.ASCII);
 
