@@ -20,7 +20,7 @@ namespace DeltaStruct.Types.Collections
                 var inst = new Collection<TInst>(context);
                 var owner = context.Current as ICollectionOwner<TInst>;
 
-                context.Current = inst;
+                context.Current = inst.Parent;
 
                 if (owner.ItemCount.HasValue)
                 {
@@ -38,7 +38,7 @@ namespace DeltaStruct.Types.Collections
                     } while (!owner.IsTerminator(item));
                 }
 
-                context.Instances.Add(inst);
+                context.TryAddInstance(inst);
                 return inst;
             }
 

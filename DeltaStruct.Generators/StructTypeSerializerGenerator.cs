@@ -66,6 +66,8 @@ namespace DeltaStruct.Generators
             GenericNameSyntax refInfo = null;
             string refTypeName = null;
 
+            bool isLinkedItem = false;
+
             if (classDef.BaseList != null)
             {
                 refInfo = classDef.BaseList?.Types
@@ -77,6 +79,12 @@ namespace DeltaStruct.Generators
                 {
                     refTypeName = refInfo.TypeArgumentList.Arguments.Single().ToString();
                 }
+
+                isLinkedItem = classDef.BaseList?.Types
+                .Select(bt => bt.Type as GenericNameSyntax)
+                .Where(g => g != null)
+                .Any(g => g.Identifier.ValueText == "ISinglyLinkedItem" ||
+                          g.Identifier.ValueText == "IDoublyLinkedItem") ?? false;
             }
 
             var text = new StringBuilder();
@@ -122,6 +130,7 @@ namespace DeltaStruct.Generators
 
             if (refTypeName != null)
             {
+                text.Append($"public Type InstanceType {{ get; }} = typeof({refTypeName});");
                 text.Append($"public {refTypeName} Instance {{ get => instance; set {{");
                 text.Append($"instance?.References.Remove(this); value?.References.Add(this); instance = value;");
                 text.Append($"Update(); }} }} private {refTypeName} instance;");
@@ -129,7 +138,17 @@ namespace DeltaStruct.Generators
 
             // Inject constructor
             text.Append($"public {className}(Context context) {{");
-            text.Append($"Offset = context.Stream.Position; Parent = context.Current; References = new HashSet<IStructReference>();");
+            text.Append($"Offset = context.Stream.Position; References = new HashSet<IStructReference>();");
+
+            if (isLinkedItem)
+            {
+                text.Append($"Parent = context.Current.Parent;");
+            }
+            else
+            {
+                text.Append($"Parent = context.Current;");
+            }
+
             text.Append($"}} public {className}(IStructInstance parent = null) {{ Parent = parent; References = new HashSet<IStructReference>();");
 
             foreach (var member in classDef.Members)
@@ -148,7 +167,12 @@ namespace DeltaStruct.Generators
             }
 
             // Declare serializer class
-            text.Append($"}} public class Serializer : ISerializer<{fullClassName}> {{");
+            text.Append($"}} public class Serializer : ISerializer, ISerializer<{fullClassName}> {{");
+
+            // Implement generic ISerializer
+            text.Append($"Type ISerializer.InstanceType => typeof({fullClassName});");
+            text.Append($"IStructInstance ISerializer.Read(Context context) => Read(context);");
+            text.Append($"void ISerializer.Write(IStructInstance inst, Context context) => Write(inst as {fullClassName}, context);");
 
             // Implement Read
             text.Append($"public {fullClassName} Read(Context context) {{");
@@ -200,21 +224,34 @@ namespace DeltaStruct.Generators
 
             if (refTypeName != null)
             {
-                text.Append($"try {{ if(inst.OffsetValue != (inst.Parent as IPointerOwner).NullOffsetValue) {{");
+                text.Append($"try {{ if(!((inst.Parent as IPointerOwner)?.IsNullPointer(inst)).Value) {{");
+                text.Append($"if(!context.IsReferenceValid(inst)) {{ inst.Instance = context.GetReferencedInstance(inst) as {refTypeName}; }} else {{");
                 text.Append($"var posBefore = stream.Position; stream.Seek(inst.OffsetValue, SeekOrigin.Begin);");
-                text.Append($"context.Current = inst.Parent; inst.Instance = Serializers.Get<{refTypeName}>().Read(context);");
-                text.Append($"stream.Seek(posBefore, SeekOrigin.Begin); }} else {{ inst.Instance = null; }} }} catch(InvalidOperationException) {{");
+
+                if (isLinkedItem)
+                {
+                    text.Append($"context.Current = inst.Parent.Parent.Parent;");
+                }
+                else
+                {
+                    text.Append($"context.Current = inst.Parent;");
+                }
+
+                text.Append($"inst.Instance = Serializers.Get<{refTypeName}>().Read(context);");
+                text.Append($"stream.Seek(posBefore, SeekOrigin.Begin); }} }} else {{ inst.Instance = null; }} }} catch(InvalidOperationException) {{");
                 text.Append($"throw new InvalidOperationException(\"Reference of type {refTypeName} was unable to be resolved!\\n");
                 text.Append($"Make sure you have implemented either IPointerOwner or IRelativePointerOwner in the parent StructType!\"); }}");
             }
 
-            text.Append($"context.Instances.Add(inst); return inst; }}");
+            text.Append($"context.TryAddInstance(inst); return inst; }}");
 
+
+            // Implement Write
             text.Append($"public void Write({fullClassName} inst, Context context) {{");
             text.Append($"var stream = context.Stream; var buffer = new byte[8].AsSpan();");
 
             text.Append($"if(inst.Offset.HasValue) stream.Seek(inst.Offset.Value, SeekOrigin.Begin);");
-            text.Append($"else context.SetOffsetWithRefUpdate(inst, stream.Position);");
+            text.Append($"else inst.SetOffsetWithRefUpdate(stream.Position);");
 
             foreach (var member in classDef.Members)
             {
@@ -256,15 +293,15 @@ namespace DeltaStruct.Generators
 
             if (refTypeName != null)
             {
-                text.Append($"if(inst.Instance != null) {{ if(inst.IsResolved && inst.OffsetValue != (inst.Parent as IPointerOwner).NullOffsetValue) {{");
+                text.Append($"if(inst.Instance != null) {{ if(inst.IsResolved && !((inst.Parent as IPointerOwner)?.IsNullPointer(inst)).Value) {{");
                 text.Append($"var posBefore = stream.Position; stream.Seek(inst.OffsetValue, SeekOrigin.Begin);");
                 text.Append($"Serializers.Get<{refTypeName}>().Write(inst.Instance, context);");
                 text.Append($"stream.Seek(posBefore, SeekOrigin.Begin); }} else {{");
                 text.Append($"Serializers.Get<{refTypeName}>().Write(inst.Instance, context);");
-                text.Append($"context.Unresolved.Add(inst); }} }} else {{ inst.Update(); }}");
+                text.Append($"context.Unresolved.Add(inst); }} }} inst.Update();");
             }
 
-            text.Append($"context.Instances.Add(inst); }} }} }} }}");
+            text.Append($"context.TryAddInstance(inst); }} }} }} }}");
 
             foreach (var parent in parentClasses)
             {

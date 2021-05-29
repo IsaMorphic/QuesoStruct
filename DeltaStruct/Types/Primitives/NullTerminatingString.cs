@@ -45,7 +45,7 @@ namespace DeltaStruct.Types
 
                     inst.Value = new string(str.ToArray());
 
-                    context.Instances.Add(inst);
+                    context.TryAddInstance(inst);
                     return inst;
                 }
 

@@ -5,6 +5,7 @@
         IStructInstance RelativeOffsetBase { get; }
         long AddedOffsetFromBase { get; }
 
-        long NullOffsetValue { get; }
+        bool IsNullPointer(IStructReference refr);
+        void SetNullPointer(IStructReference refr);
     }
 }

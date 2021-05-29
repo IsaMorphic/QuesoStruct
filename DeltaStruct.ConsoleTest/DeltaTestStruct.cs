@@ -24,8 +24,17 @@ namespace DeltaStruct.ConsoleTest
 
         DeltaTestStruct ISinglyLinkedItem<DeltaTestStruct>.Next { get => Next.Instance; set => Next.Instance = value; }
 
-        public IStructInstance RelativeOffsetBase => Parent.Parent;
+        public IStructInstance RelativeOffsetBase => Parent;
         public long AddedOffsetFromBase => 0;
-        public long NullOffsetValue => -1;
+
+        public bool IsNullPointer(IStructReference refr)
+        {
+            return refr is SInt16Pointer<DeltaTestStruct> ptr && ptr.PointerValue == -1;
+        }
+
+        public void SetNullPointer(IStructReference refr)
+        {
+            (refr as SInt16Pointer<DeltaTestStruct>).PointerValue = -1;
+        }
     }
 }

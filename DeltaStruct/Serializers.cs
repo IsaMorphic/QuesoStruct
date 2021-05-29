@@ -20,9 +20,26 @@ namespace DeltaStruct
             serializers.Add(typeof(TInst), new TSerializer());
         }
 
+        public static bool Has(Type instType)
+        {
+            return serializers.ContainsKey(instType);
+        }
+
         public static bool Has<TInst>()
         {
             return serializers.ContainsKey(typeof(TInst));
+        }
+
+        public static ISerializer Get(Type instType) 
+        {
+            if (!Has(instType))
+            {
+                instType.GetMethod("Init", BindingFlags.Public | BindingFlags.Static)
+                    .Invoke(null, null);
+            }
+
+            var inst = serializers[instType];
+            return inst as ISerializer;
         }
 
         public static ISerializer<TInst> Get<TInst>() 

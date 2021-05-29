@@ -20,7 +20,7 @@
             }
             else
             {
-                PointerValue = (uint)Owner.NullOffsetValue;
+                Owner.SetNullPointer(this);
                 IsResolved = Instance == null;
             }
         }

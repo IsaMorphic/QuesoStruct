@@ -9,4 +9,16 @@ namespace DeltaStruct
 
         HashSet<IStructReference> References { get; }
     }
+
+    public static class StructInstanceExtensions
+    {
+        public static void SetOffsetWithRefUpdate(this IStructInstance inst, long offset)
+        {
+            inst.Offset = offset;
+            foreach (var r in inst.References)
+            {
+                r.Update();
+            }
+        }
+    }
 }

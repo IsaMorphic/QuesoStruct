@@ -20,7 +20,7 @@
             }
             else
             {
-                PointerValue = (ulong)Owner.NullOffsetValue;
+                Owner.SetNullPointer(this);
                 IsResolved = Instance == null;
             }
         }

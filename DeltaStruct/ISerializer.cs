@@ -1,6 +1,16 @@
-﻿namespace DeltaStruct
+﻿using System;
+
+namespace DeltaStruct
 {
-    public interface ISerializer<TInst> 
+    public interface ISerializer
+    {
+        Type InstanceType { get; }
+
+        IStructInstance Read(Context context);
+        void Write(IStructInstance inst, Context context);
+    }
+
+    public interface ISerializer<TInst>
         where TInst : IStructInstance
     {
         TInst Read(Context context);
