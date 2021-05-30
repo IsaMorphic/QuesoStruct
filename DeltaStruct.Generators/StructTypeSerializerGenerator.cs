@@ -90,8 +90,8 @@ namespace DeltaStruct.Generators
             var text = new StringBuilder();
 
             text.Append($"using DeltaStruct;");
-            text.Append($"using DeltaStruct.Types;");
             text.Append($"using DeltaStruct.Types.Pointers;");
+            text.Append($"using DeltaStruct.Types.Primitives;");
             text.Append($"using DeltaStruct.Types.Collections;");
 
             text.Append($"using System;");

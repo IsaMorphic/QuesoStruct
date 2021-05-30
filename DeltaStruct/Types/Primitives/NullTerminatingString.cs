@@ -3,86 +3,83 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace DeltaStruct.Types
+namespace DeltaStruct.Types.Primitives
 {
-    public partial class Primitives
+    public class NullTerminatingString : IStructInstance
     {
-        public class NullTerminatingString : IStructInstance
+        public class Serializer : ISerializer<NullTerminatingString>
         {
-            public class Serializer : ISerializer<NullTerminatingString>
+            public NullTerminatingString Read(Context context)
             {
-                public NullTerminatingString Read(Context context)
+                var inst = new NullTerminatingString(context);
+                context.TryAddInstance(inst);
+
+                var stream = context.Stream;
+                var encoding = context.Encoding;
+
+                byte[] buffer = new byte[16];
+                List<char> str = new List<char>();
+
+                int bytesRead = stream.Read(buffer, 0, buffer.Length);
+                char[] chars = encoding.GetChars(buffer);
+
+                while (bytesRead > 0 && !chars.Contains('\u0000'))
                 {
-                    var inst = new NullTerminatingString(context);
-                    var stream = context.Stream;
-                    var encoding = context.Encoding;
+                    str.AddRange(chars);
 
-                    byte[] buffer = new byte[16];
-                    List<char> str = new List<char>();
-
-                    int bytesRead = stream.Read(buffer, 0, buffer.Length);
-                    char[] chars = encoding.GetChars(buffer);
-
-                    while (bytesRead > 0 && !chars.Contains('\u0000'))
-                    {
-                        str.AddRange(chars);
-
-                        bytesRead = stream.Read(buffer, 0, buffer.Length);
-                        chars = encoding.GetChars(buffer);
-                    }
-
-                    char[] leftover = chars
-                        .TakeWhile(c => c != '\u0000')
-                        .ToArray();
-
-                    if (bytesRead > leftover.Length + 1)
-                    {
-                        stream.Seek((leftover.Length + 1) - buffer.Length, SeekOrigin.Current);
-                        stream.SetLength(stream.Position);
-                    }
-
-                    str.AddRange(leftover);
-
-                    inst.Value = new string(str.ToArray());
-
-                    context.TryAddInstance(inst);
-                    return inst;
+                    bytesRead = stream.Read(buffer, 0, buffer.Length);
+                    chars = encoding.GetChars(buffer);
                 }
 
-                public void Write(NullTerminatingString inst, Context context)
+                char[] leftover = chars
+                    .TakeWhile(c => c != '\u0000')
+                    .ToArray();
+
+                if (bytesRead > leftover.Length + 1)
                 {
-                    var stream = context.Stream;
-                    var encoding = context.Encoding;
-
-                    List<byte> buffer = new List<byte>();
-
-                    buffer.AddRange(encoding.GetBytes(inst.Value));
-                    buffer.AddRange(encoding.GetBytes(new[] { '\u0000' }));
-
-                    stream.Write(buffer.ToArray(), 0, buffer.Count);
+                    stream.Seek((leftover.Length + 1) - buffer.Length, SeekOrigin.Current);
+                    stream.SetLength(stream.Position);
                 }
+
+                str.AddRange(leftover);
+
+                inst.Value = new string(str.ToArray());
+                return inst;
             }
 
-            public static void Init()
+            public void Write(NullTerminatingString inst, Context context)
             {
-                Serializers.Register<NullTerminatingString, Serializer>();
+                var stream = context.Stream;
+                var encoding = context.Encoding;
+
+                List<byte> buffer = new List<byte>();
+
+                buffer.AddRange(encoding.GetBytes(inst.Value));
+                buffer.AddRange(encoding.GetBytes(new[] { '\u0000' }));
+
+                stream.Write(buffer.ToArray(), 0, buffer.Count);
             }
-
-            public NullTerminatingString(Context context) : this()
-            {
-                Offset = context.Stream.Position;
-                Parent = context.Current;
-            }
-
-            public NullTerminatingString() { References = new HashSet<IStructReference>(); }
-
-            public long? Offset { get; set; }
-            public IStructInstance Parent { get; set; }
-
-            public IStructInstance RelativeOffsetBase { get; }
-            public HashSet<IStructReference> References { get; }
-
-            public string Value { get; set; }
         }
+
+        public static void Init()
+        {
+            Serializers.Register<NullTerminatingString, Serializer>();
+        }
+
+        public NullTerminatingString(Context context) : this()
+        {
+            Offset = context.Stream.Position;
+            Parent = context.Current;
+        }
+
+        public NullTerminatingString() { References = new HashSet<IStructReference>(); }
+
+        public long? Offset { get; set; }
+        public IStructInstance Parent { get; set; }
+
+        public IStructInstance RelativeOffsetBase { get; }
+        public HashSet<IStructReference> References { get; }
+
+        public string Value { get; set; }
     }
 }

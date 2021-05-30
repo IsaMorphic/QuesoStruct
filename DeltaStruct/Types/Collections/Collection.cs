@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace DeltaStruct.Types.Collections
@@ -7,17 +8,23 @@ namespace DeltaStruct.Types.Collections
         where TInst : IStructInstance
     {
         long? ItemCount { get; }
+        bool TerminateOnStreamEnd { get; }
+
         bool IsTerminator(IStructInstance inst);
     }
 
     public class Collection<TInst> : IStructInstance, IList<TInst>
         where TInst : IStructInstance
     {
-        public class Serializer : ISerializer<Collection<TInst>>
+        public class Serializer : ISerializer<Collection<TInst>>, ISerializer
         {
+            public Type InstanceType { get; } = typeof(Collection<TInst>);
+
             public Collection<TInst> Read(Context context)
             {
                 var inst = new Collection<TInst>(context);
+                context.TryAddInstance(inst);
+
                 var owner = context.Current as ICollectionOwner<TInst>;
 
                 context.Current = inst.Parent;
@@ -35,10 +42,9 @@ namespace DeltaStruct.Types.Collections
                     do
                     {
                         inst.Add(item = Serializers.Get<TInst>().Read(context));
-                    } while (!owner.IsTerminator(item));
+                    } while (!owner.IsTerminator(item) && !(context.Stream.Position >= context.Stream.Length && owner.TerminateOnStreamEnd));
                 }
 
-                context.TryAddInstance(inst);
                 return inst;
             }
 
@@ -49,6 +55,9 @@ namespace DeltaStruct.Types.Collections
                     Serializers.Get<TInst>().Write(item, context);
                 }
             }
+
+            IStructInstance ISerializer.Read(Context context) => Read(context);
+            void ISerializer.Write(IStructInstance inst, Context context) => Write(inst as Collection<TInst>, context);
         }
 
         public static void Init()
