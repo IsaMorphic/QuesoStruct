@@ -6,6 +6,6 @@ namespace DeltaStruct.ConsoleTest
     public partial class DeltaTestFile
     {
         [StructMember]
-        public LinkedList.Single<DeltaTestStruct> Items { get; set; }
+        public LinkedList.Double<DeltaTestStruct> Items { get; set; }
     }
 }

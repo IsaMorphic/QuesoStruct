@@ -4,11 +4,10 @@ using System.Linq;
 
 namespace DeltaStruct.Types.Collections
 {
-    public interface IDoublyLinkedItem<TInst> : IStructInstance
+    public interface IDoublyLinkedItem<TInst> : ISinglyLinkedItem<TInst>
         where TInst : class, IDoublyLinkedItem<TInst>
     {
         TInst Prev { get; set; }
-        TInst Next { get; set; }
     }
 
     public partial class LinkedList
@@ -65,9 +64,13 @@ namespace DeltaStruct.Types.Collections
 
             public void Add(TInst item)
             {
-                var last = this.Last();
-                last.Next = item;
-                item.Prev = last;
+                if (this.Any())
+                {
+                    var last = this.Last();
+                    last.Next = item;
+                    item.Prev = last;
+                }
+                else Start = item;
             }
 
             public void Insert(int index, TInst item)

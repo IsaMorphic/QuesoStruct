@@ -177,7 +177,7 @@ namespace DeltaStruct.Generators
             // Implement Read
             text.Append($"public {fullClassName} Read(Context context) {{");
             text.Append($"var stream = context.Stream; var buffer = new byte[8].AsSpan();");
-            text.Append($"var inst = new {fullClassName}(context);");
+            text.Append($"var inst = new {fullClassName}(context); context.TryAddInstance(inst);");
 
             foreach (var member in classDef.Members)
             {
@@ -225,7 +225,7 @@ namespace DeltaStruct.Generators
             if (refTypeName != null)
             {
                 text.Append($"try {{ if(!((inst.Parent as IPointerOwner)?.IsNullPointer(inst)).Value) {{");
-                text.Append($"if(!context.IsReferenceValid(inst)) {{ inst.Instance = context.GetReferencedInstance(inst) as {refTypeName}; }} else {{");
+                text.Append($"if(context.IsReferenceValid(inst)) {{ inst.Instance = context.GetReferencedInstance(inst) as {refTypeName}; }} else {{");
                 text.Append($"var posBefore = stream.Position; stream.Seek(inst.OffsetValue, SeekOrigin.Begin);");
 
                 if (isLinkedItem)
@@ -243,7 +243,7 @@ namespace DeltaStruct.Generators
                 text.Append($"Make sure you have implemented either IPointerOwner or IRelativePointerOwner in the parent StructType!\"); }}");
             }
 
-            text.Append($"context.TryAddInstance(inst); return inst; }}");
+            text.Append($"return inst; }}");
 
 
             // Implement Write
@@ -252,6 +252,8 @@ namespace DeltaStruct.Generators
 
             text.Append($"if(inst.Offset.HasValue) stream.Seek(inst.Offset.Value, SeekOrigin.Begin);");
             text.Append($"else inst.SetOffsetWithRefUpdate(stream.Position);");
+
+            text.Append($"context.TryAddInstance(inst);");
 
             foreach (var member in classDef.Members)
             {
@@ -293,15 +295,17 @@ namespace DeltaStruct.Generators
 
             if (refTypeName != null)
             {
-                text.Append($"if(inst.Instance != null) {{ if(inst.IsResolved && !((inst.Parent as IPointerOwner)?.IsNullPointer(inst)).Value) {{");
+                text.Append($"if(inst.Instance != null) {{");
+                text.Append($"if(inst.IsResolved && !((inst.Parent as IPointerOwner)?.IsNullPointer(inst)).Value) {{");
+                text.Append($"if(!context.IsReferenceValid(inst)) {{");
                 text.Append($"var posBefore = stream.Position; stream.Seek(inst.OffsetValue, SeekOrigin.Begin);");
                 text.Append($"Serializers.Get<{refTypeName}>().Write(inst.Instance, context);");
-                text.Append($"stream.Seek(posBefore, SeekOrigin.Begin); }} else {{");
-                text.Append($"Serializers.Get<{refTypeName}>().Write(inst.Instance, context);");
-                text.Append($"context.Unresolved.Add(inst); }} }} inst.Update();");
+                text.Append($"stream.Seek(posBefore, SeekOrigin.Begin); }} }} else {{");
+                text.Append($"if(!context.IsReferenceValid(inst)) Serializers.Get<{refTypeName}>().Write(inst.Instance, context);");
+                text.Append($"context.Unresolved.Add(inst); }} }} else {{ context.Unresolved.Add(inst); }} inst.Update();");
             }
 
-            text.Append($"context.TryAddInstance(inst); }} }} }} }}");
+            text.Append($"}} }} }} }}");
 
             foreach (var parent in parentClasses)
             {
