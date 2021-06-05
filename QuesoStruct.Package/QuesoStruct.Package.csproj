@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk" DefaultTargets="Pack">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+  
+  <PropertyGroup>
+    <PackageId>QuesoStruct</PackageId>
+    <Title>QuesoStruct</Title>
+    <Description>A delicious binary serialization library that says no to boilerplate and yes to great code and design.</Description>
+    <PackageVersion>1.0</PackageVersion>
+    <RepositoryUrl>https://github.com/yodadude2003/QuesoStruct</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <ProjectUrl>https://github.com/yodadude2003/QuesoStruct</ProjectUrl>
+    <Authors>Yodadude2003</Authors>
+    <Owners>Chosen Few Software</Owners>
+    <Copyright>Copyright (c) 2021 Chosen Few Software</Copyright>
+    <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+    <!--<PackageIcon>icon.png</PackageIcon>-->
+    <PackageTags>binary-files serialization source-generation automation framework cheese</PackageTags>
+  </PropertyGroup>
+
+  <!--<ItemGroup>
+    <Content Include="icon.png" PackFolder="\" />
+  </ItemGroup>-->
+
+  <ItemGroup>
+    <ProjectReference Include="..\QuesoStruct\QuesoStruct.csproj" />
+    <ProjectReference Include="..\QuesoStruct.Generators\QuesoStruct.Generators.csproj" />
+  </ItemGroup>
+
+</Project>

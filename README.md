@@ -1,6 +1,6 @@
 # QuesoStruct 🧀
 
-Boilerplate is out, and *QuesoStruct* is in! ¿Porque queso? ¡¿Porque no?! Me gusta queso 😋 
+Boilerplate is out, and *QuesoStruct* is in! ¿Porque queso? ¡¿Porque no?! Me gusta queso😋 
 
 **QuesoStruct is a pure C# .NET based source generation package** that allows its users to **instantly write binary serialization code** for **both reading and writing** scenarios, complete **with built-in support for data structures** common to binary file formats including:
 
@@ -115,7 +115,7 @@ using QuesoStruct.Types.Collections;
 /* in Main method of Program.cs or something */
 using var file = File.OpenRead("my-file.bin");
 
-// Minimal boilerplate for accessing DeltaStruct API:
+// Minimal boilerplate for accessing QuesoStruct API:
 // 1. access generated code
 var serializer = Serializers.Get<Collection<MyStruct>>();
 
@@ -133,4 +133,24 @@ foreach(var instance in instances)
 ```
 
 In the "before example", imagine having to write code like that for several other classes, whose members might be many times more numerous! *It'd be a spaghetti code nightmare!!* **QuesoStruct saves you the trouble so you can focus exclusively on your schema and processing.**
+
+# How to get started?
+
+We're on [NuGet](https://www.nuget.org/packages/QuesoStruct/1.0.0)! Just copy and paste the following into your project file:
+
+```xml
+<PackageReference Include="QuesoStruct" Version="1.0.0" />
+```
+
+And you're ready to go! For more detailed information on how to use QuesoStruct to its fullest potential, see the repository wiki for up to date documentation.
+
+# Who uses QuesoStruct?
+
+Currently, only me, haha.  I plan to use this in many of my future reverse engineering projects, including *StudSmelter*, which is a successor to [NuXtractor](https://github.com/yodadude2003/NuXtractor) that has yet to be written (coming soon maybe?).  
+
+Do let me know if you plan to use QuesoStruct in your own project! I'd love to put together a "hall of fame" section for this document to let some obscure projects shine!
+
+# Questions?
+
+If you have any feedback or questions, feel free to open an issue! My goal is to make this project as useful as possible to as many people as possible.  Also don't hesitate to share any projects of yours that make use of QuesoStruct.  Cheers!
 
