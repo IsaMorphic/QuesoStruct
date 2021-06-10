@@ -142,7 +142,7 @@ We're on [NuGet](https://www.nuget.org/packages/QuesoStruct/1.0.0)! Just copy an
 <PackageReference Include="QuesoStruct" Version="1.0.0" />
 ```
 
-And you're ready to go! For more detailed information on how to use QuesoStruct to its fullest potential, see the repository wiki for up to date documentation.
+And you're ready to go! For more detailed information on how to use QuesoStruct to its fullest potential, see the [repository wiki](wiki) for up to date documentation.
 
 # Who uses QuesoStruct?
 
