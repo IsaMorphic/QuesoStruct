@@ -8,7 +8,7 @@
     <PackageId>QuesoStruct</PackageId>
     <Title>QuesoStruct</Title>
     <Description>A delicious binary serialization library that says no to boilerplate and yes to great code and design.</Description>
-    <PackageVersion>1.0</PackageVersion>
+    <PackageVersion>1.0.1</PackageVersion>
     <RepositoryUrl>https://github.com/yodadude2003/QuesoStruct</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <ProjectUrl>https://github.com/yodadude2003/QuesoStruct</ProjectUrl>
@@ -19,28 +19,10 @@
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <!--<PackageIcon>icon.png</PackageIcon>-->
     <PackageTags>binary-files serialization source-generation automation framework cheese</PackageTags>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\QuesoStruct.Generators\QuesoStruct.Generators.csproj" OutputItemType="Analyzer" PrivateAssets="all" />
+    <ProjectReference Include="..\QuesoStruct.Generators\QuesoStruct.Generators.csproj" OutputItemType="Analyzer" />
   </ItemGroup>
-
-  <PropertyGroup>
-    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
-  </PropertyGroup>
-
-  <Target Name="CopyProjectReferencesToPackage" DependsOnTargets="BuildOnlySettings;ResolveReferences">
-    <ItemGroup>
-      <!-- Filter out unnecessary files -->
-      <_ReferenceCopyLocalPaths Include="@(ReferenceCopyLocalPaths->WithMetadataValue('ReferenceSourceTarget', 'ProjectReference')->WithMetadataValue('PrivateAssets', 'All'))"/>
-    </ItemGroup>
-
-    <!-- Print batches for debug purposes -->
-    <Message Text="Batch for .nupkg: ReferenceCopyLocalPaths = @(_ReferenceCopyLocalPaths), ReferenceCopyLocalPaths.DestinationSubDirectory = %(_ReferenceCopyLocalPaths.DestinationSubDirectory) Filename = %(_ReferenceCopyLocalPaths.Filename) Extension = %(_ReferenceCopyLocalPaths.Extension)" Importance="High" Condition="'@(_ReferenceCopyLocalPaths)' != ''" />
-
-    <ItemGroup>
-      <!-- Add file to package with consideration of sub folder. If empty, the root folder is chosen. -->
-      <BuildOutputInPackage Include="@(_ReferenceCopyLocalPaths)" TargetPath="%(_ReferenceCopyLocalPaths.DestinationSubDirectory)"/>
-    </ItemGroup>
-  </Target>
 </Project>

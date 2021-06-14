@@ -136,10 +136,11 @@ In the "before example", imagine having to write code like that for several othe
 
 # How to get started?
 
-We're on [NuGet](https://www.nuget.org/packages/QuesoStruct/1.0.0)! Just copy and paste the following into your project file:
+We're on [NuGet](https://www.nuget.org/packages/QuesoStruct/1.0.1)! Just copy and paste the following into your project file:
 
 ```xml
-<PackageReference Include="QuesoStruct" Version="1.0.0" />
+<PackageReference Include="QuesoStruct" Version="1.0.1" />
+<PackageReference Include="QuesoStruct.Generators" Version="1.0.1" />
 ```
 
 And you're ready to go! For more detailed information on how to use QuesoStruct to its fullest potential, see the [repository wiki](../../wiki) for up to date documentation.
