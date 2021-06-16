@@ -55,7 +55,6 @@ namespace QuesoStruct.Types.Primitives
                 if (bytesRead > leftover.Length + 1)
                 {
                     stream.Seek((leftover.Length + 1) - buffer.Length, SeekOrigin.Current);
-                    stream.SetLength(stream.Position);
                 }
 
                 str.AddRange(leftover);
@@ -98,5 +97,10 @@ namespace QuesoStruct.Types.Primitives
         public HashSet<IStructReference> References { get; }
 
         public string Value { get; set; }
+
+        public override string ToString()
+        {
+            return Value;
+        }
     }
 }

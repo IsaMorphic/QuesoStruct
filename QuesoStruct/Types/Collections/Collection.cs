@@ -44,9 +44,9 @@ namespace QuesoStruct.Types.Collections
 
                 var owner = context.Current as ICollectionOwner<TInst>;
 
-                context.Current = inst.Parent;
+                //context.Current = inst.Parent;
 
-                if (owner.ItemCount.HasValue)
+                if ((owner?.ItemCount).HasValue)
                 {
                     for (var i = 0L; i < owner.ItemCount; i++)
                     {
@@ -82,14 +82,14 @@ namespace QuesoStruct.Types.Collections
             Serializers.Register<Collection<TInst>, Serializer>();
         }
 
-        public Collection(Context context) : this()
+        public Collection(Context context) : this(context.Current)
         {
             Offset = context.Stream.Position;
-            Parent = context.Current;
         }
 
-        public Collection() 
-        { 
+        public Collection(IStructInstance parent = null) 
+        {
+            Parent = parent;
             References = new HashSet<IStructReference>(); 
             items = new List<TInst>(); 
         }

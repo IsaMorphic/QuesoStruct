@@ -257,7 +257,7 @@ namespace QuesoStruct.Generators
                 text.Append($"inst.Instance = Serializers.Get<{refTypeName}>().Read(context);");
                 text.Append($"stream.Seek(posBefore, SeekOrigin.Begin); }} }} else {{ inst.Instance = null; }} }} catch(InvalidOperationException) {{");
                 text.Append($"throw new InvalidOperationException(\"Reference of type {refTypeName} was unable to be resolved!\\n");
-                text.Append($"Make sure you have implemented either IPointerOwner or IRelativePointerOwner in the parent StructType!\"); }}");
+                text.Append($"Make sure you have implemented either IPointerOwner in the parent StructType!\"); }}");
             }
 
             text.Append($"return inst; }}");
