@@ -8,7 +8,7 @@
     <PackageId>QuesoStruct.Generators</PackageId>
     <Title>QuesoStruct.Generators</Title>
     <Description>A delicious binary serialization library that says no to boilerplate and yes to great code and design.</Description>
-    <PackageVersion>1.0.3</PackageVersion>
+    <PackageVersion>1.0.4</PackageVersion>
     <RepositoryUrl>https://github.com/yodadude2003/QuesoStruct</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <ProjectUrl>https://github.com/yodadude2003/QuesoStruct</ProjectUrl>

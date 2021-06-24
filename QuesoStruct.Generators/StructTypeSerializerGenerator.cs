@@ -148,9 +148,9 @@ namespace QuesoStruct.Generators
             if (refTypeName != null)
             {
                 text.Append($"public Type InstanceType {{ get; }} = typeof({refTypeName});");
-                text.Append($"public {refTypeName} Instance {{ get => instance; set {{");
-                text.Append($"instance?.References.Remove(this); value?.References.Add(this); instance = value;");
-                text.Append($"Update(); }} }} private {refTypeName} instance;");
+                text.Append($"public {refTypeName} Instance {{ get => instance.Value; set {{");
+                text.Append($"Instance?.References.Remove(this); value?.References.Add(this); instance = new Lazy<{refTypeName}>(value);");
+                text.Append($"Update(); }} }} internal Lazy<{refTypeName}> instance = new Lazy<{refTypeName}>(() => null);");
             }
 
             // Inject constructor
@@ -242,7 +242,9 @@ namespace QuesoStruct.Generators
             if (refTypeName != null)
             {
                 text.Append($"try {{ if(!((inst.Parent as IPointerOwner)?.IsNullPointer(inst)).Value) {{");
-                text.Append($"if(context.IsReferenceValid(inst)) {{ inst.Instance = context.GetReferencedInstance(inst) as {refTypeName}; }} else {{");
+                text.Append($"if(context.IsReferenceValid(inst)) {{ inst.instance = new Lazy<{refTypeName}>(context.GetReferencedInstance(inst) as {refTypeName}); }} else {{");
+
+                text.Append($"inst.instance = new Lazy<{refTypeName}>(() => {{");
                 text.Append($"var posBefore = stream.Position; stream.Seek(inst.OffsetValue, SeekOrigin.Begin);");
 
                 if (isLinkedItem)
@@ -254,8 +256,8 @@ namespace QuesoStruct.Generators
                     text.Append($"context.Current = inst.Parent;");
                 }
 
-                text.Append($"inst.Instance = Serializers.Get<{refTypeName}>().Read(context);");
-                text.Append($"stream.Seek(posBefore, SeekOrigin.Begin); }} }} else {{ inst.Instance = null; }} }} catch(InvalidOperationException) {{");
+                text.Append($"return Serializers.Get<{refTypeName}>().Read(context);");
+                text.Append($"stream.Seek(posBefore, SeekOrigin.Begin); }}); }} }} else {{ inst.Instance = null; }} }} catch(InvalidOperationException) {{");
                 text.Append($"throw new InvalidOperationException(\"Reference of type {refTypeName} was unable to be resolved!\\n");
                 text.Append($"Make sure you have implemented either IPointerOwner in the parent StructType!\"); }}");
             }
