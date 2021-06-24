@@ -43,8 +43,7 @@ namespace QuesoStruct.Types.Collections
                 context.TryAddInstance(inst);
 
                 var owner = context.Current as ICollectionOwner<TInst>;
-
-                //context.Current = inst.Parent;
+                context.Current = inst;
 
                 if ((owner?.ItemCount).HasValue)
                 {
