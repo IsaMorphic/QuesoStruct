@@ -43,12 +43,11 @@ namespace QuesoStruct.Types.Collections
                 context.TryAddInstance(inst);
 
                 var owner = context.Current as ICollectionOwner<TInst>;
-                context.Current = inst;
-
                 if ((owner?.ItemCount).HasValue)
                 {
                     for (var i = 0L; i < owner.ItemCount; i++)
                     {
+                        context.Current = inst;
                         inst.Add(Serializers.Get<TInst>().Read(context));
                     }
                 }
@@ -57,6 +56,7 @@ namespace QuesoStruct.Types.Collections
                     TInst item;
                     do
                     {
+                        context.Current = inst;
                         inst.Add(item = Serializers.Get<TInst>().Read(context));
                     } while (!(owner?.IsTerminator(item) ?? false) && !(context.Stream.Position >= context.Stream.Length && (owner?.TerminateOnStreamEnd ?? true)));
                 }
