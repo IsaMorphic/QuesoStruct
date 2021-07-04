@@ -18,6 +18,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 
 namespace QuesoStruct.Types.Collections
 {
@@ -66,6 +67,12 @@ namespace QuesoStruct.Types.Collections
 
             public void Write(Collection<TInst> inst, Context context)
             {
+                var stream = context.Stream;
+
+                if(inst.Offset.HasValue) stream.Seek(inst.Offset.Value, SeekOrigin.Begin);
+                else inst.SetOffsetWithRefUpdate(stream.Position);
+
+                context.TryAddInstance(inst);
                 foreach (var item in inst)
                 {
                     Serializers.Get<TInst>().Write(item, context);

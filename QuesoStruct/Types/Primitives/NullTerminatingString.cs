@@ -68,6 +68,11 @@ namespace QuesoStruct.Types.Primitives
                 var stream = context.Stream;
                 var encoding = context.Encoding;
 
+                if (inst.Offset.HasValue) stream.Seek(inst.Offset.Value, SeekOrigin.Begin);
+                else inst.SetOffsetWithRefUpdate(stream.Position);
+
+                context.TryAddInstance(inst);
+
                 List<byte> buffer = new List<byte>();
 
                 buffer.AddRange(encoding.GetBytes(inst.Value));

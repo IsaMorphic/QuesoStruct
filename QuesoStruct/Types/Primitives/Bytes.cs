@@ -54,7 +54,13 @@ namespace QuesoStruct.Types.Primitives
             public void Write(Bytes inst, Context context)
             {
                 var stream = context.Stream;
-                stream.Seek(0, SeekOrigin.Begin);
+
+                if (inst.Offset.HasValue) stream.Seek(inst.Offset.Value, SeekOrigin.Begin);
+                else inst.SetOffsetWithRefUpdate(stream.Position);
+
+                context.TryAddInstance(inst);
+
+                inst.Stream.Seek(0, SeekOrigin.Begin);
                 inst.Stream.CopyTo(stream);
             }
 
