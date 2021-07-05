@@ -226,8 +226,8 @@ namespace QuesoStruct.Generators
                         case "float":
                         case "double":
                             text.Append($"var s_{propName} = buffer[0..sizeof({typeName})];");
-                            text.Append($"if (context.Endianess != Context.SystemEndianess) s_{propName}.Reverse();");
                             text.Append($"var v_{propName} = stream.Read(s_{propName});");
+                            text.Append($"if (context.Endianess != Context.SystemEndianess) s_{propName}.Reverse();");
                             text.Append($"if(v_{propName} <= 0) throw new EndOfStreamException(\"Failed to read {typeName} {className}.{propName} from stream!\");");
                             text.Append($"inst.{propName} = BitConverter.To{Types[typeName]}(s_{propName});");
                             break;
