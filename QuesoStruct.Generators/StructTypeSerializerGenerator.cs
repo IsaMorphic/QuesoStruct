@@ -319,8 +319,8 @@ namespace QuesoStruct.Generators
                 text.Append($"var posBefore = stream.Position; stream.Seek(inst.OffsetValue, SeekOrigin.Begin);");
                 text.Append($"Serializers.Get<{refTypeName}>().Write(inst.Instance, context);");
                 text.Append($"stream.Seek(posBefore, SeekOrigin.Begin); }} }} else {{");
-                text.Append($"if(!context.IsReferenceValid(inst)) Serializers.Get<{refTypeName}>().Write(inst.Instance, context);");
-                text.Append($"context.Unresolved.Add(inst); }} }} else {{ context.Unresolved.Add(inst); }} inst.Update();");
+                text.Append($"if(!context.IsReferenceValid(inst)) context.Unresolved.Add(inst); }} }} else {{");
+                text.Append($"context.Unresolved.Add(inst); }} inst.Update();");
             }
 
             text.Append($"}} }} }} }}");
