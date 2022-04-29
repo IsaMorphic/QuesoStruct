@@ -32,9 +32,12 @@ namespace QuesoStruct.Types.Primitives
         {
             public Type InstanceType => typeof(Bytes);
 
-            public Bytes Read(Context context)
+            public Bytes Read(Context context) 
             {
-                var inst = new Bytes(context);
+                return Read(context, new Bytes(context));
+            }
+            private Bytes Read(Context context, Bytes inst)
+            {
                 context.TryAddInstance(inst);
 
                 var owner = context.Current as IBytesOwner;
@@ -58,10 +61,17 @@ namespace QuesoStruct.Types.Primitives
                 if (inst.Offset.HasValue) stream.Seek(inst.Offset.Value, SeekOrigin.Begin);
                 else inst.SetOffsetWithRefUpdate(stream.Position);
 
-                context.TryAddInstance(inst);
+                if (inst.Stream == null)
+                {
+                    Read(context, inst);
+                }
+                else
+                {
+                    context.TryAddInstance(inst);
 
-                inst.Stream.Seek(0, SeekOrigin.Begin);
-                inst.Stream.CopyTo(stream);
+                    inst.Stream.Seek(0, SeekOrigin.Begin);
+                    inst.Stream.CopyTo(stream);
+                }
             }
 
             IStructInstance ISerializer.Read(Context context) => Read(context);
